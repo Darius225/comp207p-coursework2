@@ -26,8 +26,8 @@
       <file leaf-file-name="ConstantFolder.java" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/comp207p/main/ConstantFolder.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2877">
-              <caret line="137" column="1" lean-forward="true" selection-start-line="137" selection-start-column="1" selection-end-line="137" selection-end-column="1" />
+            <state relative-caret-position="490">
+              <caret line="95" column="26" lean-forward="true" selection-start-line="95" selection-start-column="26" selection-end-line="95" selection-end-column="26" />
               <folding>
                 <element signature="imports" expanded="true" />
               </folding>
@@ -661,8 +661,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/comp207p/main/ConstantFolder.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2877">
-          <caret line="137" column="1" lean-forward="true" selection-start-line="137" selection-start-column="1" selection-end-line="137" selection-end-column="1" />
+        <state relative-caret-position="490">
+          <caret line="95" column="26" lean-forward="true" selection-start-line="95" selection-start-column="26" selection-end-line="95" selection-end-column="26" />
           <folding>
             <element signature="imports" expanded="true" />
           </folding>
