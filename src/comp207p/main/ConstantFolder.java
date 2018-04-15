@@ -17,6 +17,8 @@ public class ConstantFolder
 	JavaClass original = null;
 	JavaClass optimized = null;
 
+	private static final String loadInstructionRegex = "(ConstantPushInstruction|LoadInstruction|LDC|LDC2_W)";
+
 	public ConstantFolder(String classFilePath)
 	{
 		try{
@@ -34,15 +36,49 @@ public class ConstantFolder
 		ConstantPoolGen constPoolGen = classGen.getConstantPool();
 		Method[] methods = classGen.getMethods();
 		System.out.println("Working on " + classGen.getClassName());
+
 		for (Method method : methods) {
 			MethodGen methodGen = new MethodGen(method, classGen.getClassName(), constPoolGen);
 			System.out.println("Now optimizing method: " + method );
-            applySimpleFoldingToAMethod( methodGen , constPoolGen );
-            Method newMethod = methodGen.getMethod();
-            classGen.replaceMethod(method,newMethod);
+			optimizeMethod(classGen, constPoolGen, method);
+            //applySimpleFoldingToAMethod( methodGen , constPoolGen );
+            //Method newMethod = methodGen.getMethod();
+            //classGen.replaceMethod(method,newMethod);
 		}
 		this.optimized = classGen.getJavaClass();
 	}
+
+	private void optimizeMethod(ClassGen classGen, ConstantPoolGen constPoolGen, Method method)
+	{
+		Code methodCode = method.getCode();
+
+		InstructionList instructionList = new InstructionList(methodCode.getCode());
+
+		MethodGen methodGen = new MethodGen(method.getAccessFlags(), method.getReturnType(), method.getArgumentTypes(), null, method.getName(), classGen.getClassName(), instructionList, constPoolGen);
+
+		int optimizeCont = 1;
+
+		//Run in while loop until all possible optimisations have been made
+
+		while(optimizeCont > 0)
+		{
+			optimizeCont = 0;
+		}
+
+		//checks that jump handles are within the current method
+		instructionList.setPositions(true);
+
+		//set max locals/stack
+		methodGen.setMaxLocals();
+		methodGen.setMaxStack();
+
+		//generate new method with optimized instructions
+		Method newMethod = methodGen.getMethod();
+
+		//replace the old method with the optimized one
+		classGen.replaceMethod(method, newMethod);
+	}
+
 	public void applySimpleFoldingToAMethod( MethodGen methodGen , ConstantPoolGen constPoolGen)
 	{
 		boolean finished = false ;
