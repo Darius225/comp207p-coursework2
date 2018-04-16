@@ -97,13 +97,12 @@ public class ConstantFolder
 			InstructionHandle loadInstruction = match[0];
 			InstructionHandle negationInstruction = match[1];
 
-			String type = getSignature(negationInstruction, constantPoolGen);
-
-			Number value = getValue(loadInstruction, constantPoolGen, instructionList, type);
+			Number value = getValue(loadInstruction, constantPoolGen);
 
 			//Dmul works with all data types, since all of them can be converted to a double value without loss of accuracy
 			//Due to double being bigger
 			Number negativeValue = foldOperation(new DMUL(), -1, value);
+			String type = getSignature(negationInstruction, constantPoolGen);
 
 			int poolIndex = insert(negativeValue, type, constantPoolGen);
 
@@ -213,7 +212,7 @@ public class ConstantFolder
 		}
 	}
 
-	private static Number foldOperation(ArithmeticInstruction instruction, Number left, Number right)
+	public static Number foldOperation(ArithmeticInstruction instruction, Number left, Number right)
 	{
 		if(instruction instanceof IADD || instruction instanceof LADD)
 		{
@@ -340,12 +339,12 @@ public class ConstantFolder
 		handle.setInstruction(newInstruction);
 	}
 
-	public static Number getValue(InstructionHandle handle, ConstantPoolGen constantPoolGen, InstructionList instructionList, String type)
+	public static Number getValue(InstructionHandle handle, ConstantPoolGen constantPoolGen)
 	{
 			Instruction instruction = handle.getInstruction();
 
 			if(instruction instanceof LoadInstruction)
-				return ValueLoader.getLoadInstrValue(handle, constantPoolGen, instructionList, type);
+				return ValueLoader.getLoadInstrValue(handle, constantPoolGen);
 			else
 				return ValueLoader.getConstantValue(handle, constantPoolGen);
 	}
