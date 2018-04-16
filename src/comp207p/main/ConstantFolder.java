@@ -36,17 +36,21 @@ public class ConstantFolder
 		System.out.println("Working on " + classGen.getClassName());
 		for (Method method : methods) {
 			MethodGen methodGen = new MethodGen(method, classGen.getClassName(), constPoolGen);
+			InstructionList il = methodGen.getInstructionList() ;
 			System.out.println("Now optimizing method: " + method );
-            applySimpleFoldingToAMethod( methodGen , constPoolGen );
+			displayByteCode(il);
+            applySimpleFoldingToAMethod( il , methodGen , constPoolGen );
+            applyVariableFoldingToAMethod( methodGen , constPoolGen );
+			System.out.println("We optimized method: " + method );
+            displayByteCode(il);
             Method newMethod = methodGen.getMethod();
             classGen.replaceMethod(method,newMethod);
 		}
 		this.optimized = classGen.getJavaClass();
 	}
-	public void applySimpleFoldingToAMethod( MethodGen methodGen , ConstantPoolGen constPoolGen)
+	public void applySimpleFoldingToAMethod( InstructionList il , MethodGen methodGen , ConstantPoolGen constPoolGen)
 	{
 		boolean finished = false ;
-		InstructionList il = methodGen.getInstructionList() ;
 		String pat = "LDC LDC ArithmeticInstruction" ;
 		while ( finished == false )
 		{
@@ -65,13 +69,9 @@ public class ConstantFolder
 					ArithmeticInstruction op = (ArithmeticInstruction) operation.getInstruction();
 					System.out.println("First number is: " + leftValue + " and second :  " + rightValue + " Operation: " + op.getName().toString() ) ;
 					computeArithmeticalExpression( leftValue , rightValue , op , constPoolGen , firstPart );
-
 					try {
-
 						il.delete(secondPart);
-
 						il.delete(operation);
-
 						System.out.println("Am obtinut : " + (Number) ((LDC) firstPart.getInstruction()).getValue(constPoolGen) ) ;
 					}
 					catch (TargetLostException e)
@@ -81,6 +81,9 @@ public class ConstantFolder
 
 		        }
 		}
+	}
+	public void displayByteCode(InstructionList il )
+	{
 		Instruction[] instruction = il.getInstructions() ;
 		for ( Instruction instruction1 : instruction )
 		{
@@ -119,6 +122,23 @@ public class ConstantFolder
 		{
 
 		}
+	}
+	public void applyVariableFoldingToAMethod(MethodGen methodGen , ConstantPoolGen constPoolGen )
+	{
+		String pushInstruction = "ConstantPushInstruction" ;
+		InstructionList il = methodGen.getInstructionList() ;
+		InstructionFinder finder = new InstructionFinder(il);
+		System.out.println("We are now applying variable folding ..." ) ;
+		for(Iterator it = finder.search(pushInstruction); it.hasNext();) { // Iterate through instructions to look for arithmetic optimisation
+			InstructionHandle[] match = (InstructionHandle[]) it.next();
+			ConstantPushInstruction firstPart = (ConstantPushInstruction) match [ 0 ].getInstruction() ;
+			System.out.println("The instruction is " + match[0] + " The constant part " + firstPart.getValue() ) ;
+			int ind =  constPoolGen.addInteger(firstPart.getValue().intValue());
+			LDC newInstruction = new LDC(ind);
+			match [ 0 ] .setInstruction(newInstruction);
+			System.out.println( " The new instruction is " + match [ 0 ] ) ;
+		}
+		System.out.println("")
 	}
 	public void write(String optimisedFilePath)
 	{
