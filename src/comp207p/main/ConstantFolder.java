@@ -19,7 +19,9 @@ public class ConstantFolder
 	JavaClass optimized = null;
 
 	private static final String loadInstructionRegex = "(ConstantPushInstruction|LoadInstruction|LDC|LDC2_W)";
-	private static final String negation = " (INEG|FNEG|LNEG|DNEG)";
+	private static final String negationInstructionRegex = " (INEG|FNEG|LNEG|DNEG)";
+	private static final String conversionInstructionRegex = " (ConversionInstruction)? ";
+	private static final String arithmeticInstructionRegex = "(ArithmeticInstruction)";
 
 	public ConstantFolder(String classFilePath)
 	{
@@ -66,6 +68,7 @@ public class ConstantFolder
 		{
 			optimizeCont = 0;
 			optimizeCont += optimizeNegations(instructionList, constPoolGen);
+			optimizeCont += optimizeArithmeticInstructions(instructionList, constPoolGen);
 		}
 
 		//checks that jump handles are within the current method
@@ -85,7 +88,7 @@ public class ConstantFolder
 	private int optimizeNegations(InstructionList instructionList, ConstantPoolGen constantPoolGen)
 	{
 		int cont = 0;
-		String regex = loadInstructionRegex + negation;
+		String regex = loadInstructionRegex + negationInstructionRegex;
 
 		InstructionFinder finder = new InstructionFinder(instructionList);
 
@@ -106,8 +109,10 @@ public class ConstantFolder
 
 			int poolIndex = insert(negativeValue, type, constantPoolGen);
 
+			//Set load instruction handle to equal a constant load operation pointing to poolIndex
 			replaceInstructionHandleWithLDC(loadInstruction, type, poolIndex);
 
+			//Delete the other handle (only one exists, so we do not have to provide a range here)
 			try {
 				instructionList.delete(match[1]);
 			} catch (TargetLostException e) {
@@ -115,7 +120,84 @@ public class ConstantFolder
 			}
 			cont++;
 		}
+		return cont;
+	}
 
+	private int optimizeArithmeticInstructions(InstructionList instructionList, ConstantPoolGen constantPoolGen)
+	{
+		int cont=0;
+		String regex = loadInstructionRegex + conversionInstructionRegex + loadInstructionRegex + conversionInstructionRegex + loadInstructionRegex + arithmeticInstructionRegex;
+
+		InstructionFinder finder = new InstructionFinder(instructionList);
+
+		//Iterate through instructions matching our pattern (arithmetic operations to optimize them
+		//There will be more cases to consider with the match's, one for when no conversion is present
+
+		for(Iterator it = finder.search(regex); it.hasNext();)
+		{
+			InstructionHandle[] match = (InstructionHandle[]) it.next();
+
+			InstructionHandle leftInstruction, rightInstruction; //these are load instructions (constant or otherwise)
+			InstructionHandle arithmeticInstruction;
+
+			Number leftValue, rightValue; //values loaded using the left and right instructions respectively
+
+			leftInstruction = match[0]; //As seen from the regex, the first instruction is always a load instruction
+
+			boolean isConversion = false; //holds whether match[2] is a conversion instruction
+			if(match[1].getInstruction() instanceof ConversionInstruction)
+			{
+				//match[2] will be the right instruction
+				rightInstruction = match[2];
+
+				isConversion = true;
+			}
+			else
+			rightInstruction = match[1];
+
+			//Same as for rightInstruction
+			if(isConversion)
+			{
+				if(match[3].getInstruction() instanceof ConversionInstruction)
+					arithmeticInstruction = match[4];
+				else
+					arithmeticInstruction = match[3];
+			}
+			else
+			{
+				if(match[2].getInstruction() instanceof  ConversionInstruction)
+					arithmeticInstruction = match[3];
+				else
+					arithmeticInstruction = match[2];
+			}
+
+			try {
+				leftValue = getValue(leftInstruction, constantPoolGen);
+				rightValue = getValue(leftInstruction, constantPoolGen);
+			}
+			catch(Exception e)
+			{
+				continue;
+			}
+
+			ArithmeticInstruction operation = (ArithmeticInstruction) arithmeticInstruction.getInstruction();
+			Number value = foldOperation(operation, leftValue, rightValue);
+			String type = getFoldInstructionSignature(leftInstruction, rightInstruction, constantPoolGen);
+
+			int poolIndex = insert(value, type, constantPoolGen);
+
+			//Set left instruction handle to equal a constant load operation pointing to poolIndex
+			replaceInstructionHandleWithLDC(leftInstruction, type, poolIndex);
+
+			//Delete the other handles (from the next one, up to the arithmetic instruction one, which is always the last in our pattern
+			try{
+				instructionList.delete(match[1], arithmeticInstruction);
+			} catch (TargetLostException e) {
+				e.printStackTrace();
+			}
+
+			cont++;
+		}
 		return cont;
 	}
 
@@ -347,5 +429,37 @@ public class ConstantFolder
 				return ValueLoader.getLoadInstrValue(handle, constantPoolGen);
 			else
 				return ValueLoader.getConstantValue(handle, constantPoolGen);
+	}
+
+	/*private String getSignature(InstructionHandle handle, ConstantPoolGen constantPoolGen)
+	{
+		Type type = ((TypedInstruction) handle).getType(constantPoolGen);
+		return type.getSignature();
+	}*/
+
+	private String getFoldInstructionSignature(InstructionHandle left, InstructionHandle right, ConstantPoolGen constantPoolGen)
+	{
+		String signature1 = getSignature(left, constantPoolGen);
+		String signature2 = getSignature(right, constantPoolGen);
+
+		//If their signatures differ, Java (and other programming languages such as C/C++ will convert the more restrictive type to the less restrictive one
+		//Namely, an operation with a double and an int will cast the int to the double
+		//The types are checked in this relevancy order, with byte and short promoted to int
+		if(signature1 == "D" || signature2 == "D")
+			return "D";
+		else if(signature1 == "F" || signature2 == "F")
+			return "F";
+		else if(signature1 == "J" || signature2 == "J")
+			return "J";
+		else if(signature1 == "I" || signature2 == "I")
+			return "I";
+		else if(signature1 == "S" || signature2 == "S")
+			return "I";
+		else if(signature1 == "B" || signature2 == "B")
+			return "I";
+		else
+		{
+			throw new RuntimeException("Invalid types: " + signature1 + signature2);
+		}
 	}
 }
