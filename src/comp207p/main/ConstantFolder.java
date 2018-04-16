@@ -99,11 +99,11 @@ public class ConstantFolder
 
 			String type = getSignature(negationInstruction, constantPoolGen);
 
-			Number value = ValueLoader.getValue(loadInstruction, constantPoolGen, instructionList, type);
+			Number value = getValue(loadInstruction, constantPoolGen, instructionList, type);
 
 			//Dmul works with all data types, since all of them can be converted to a double value without loss of accuracy
 			//Due to double being bigger
-			Number negativeValue = foldOperation(new DMUL(), value, -1);
+			Number negativeValue = foldOperation(new DMUL(), -1, value);
 
 			int poolIndex = insert(negativeValue, type, constantPoolGen);
 
@@ -338,5 +338,15 @@ public class ConstantFolder
 			newInstruction = new LDC2_W(poolIndex);
 		}
 		handle.setInstruction(newInstruction);
+	}
+
+	public static Number getValue(InstructionHandle handle, ConstantPoolGen constantPoolGen, InstructionList instructionList, String type)
+	{
+			Instruction instruction = handle.getInstruction();
+
+			if(instruction instanceof LoadInstruction)
+				return ValueLoader.getLoadInstrValue(handle, constantPoolGen, instructionList, type);
+			else
+				return ValueLoader.getConstantValue(handle, constantPoolGen);
 	}
 }
