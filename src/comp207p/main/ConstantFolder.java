@@ -281,9 +281,34 @@ public class ConstantFolder
 		}
 	}
 
-	private String getSignature(InstructionHandle negationInstruction, ConstantPoolGen constantPoolGen)
+	private String getSignature(InstructionHandle handle, ConstantPoolGen constantPoolGen)
 	{
-		//To be implemented;
+		Instruction instruction = handle.getInstruction();
+		if(instruction instanceof TypedInstruction)
+		{
+			//index to identify the right store instruction
+			int localIndex = ((LocalVariableInstruction) instruction).getIndex();
+			//Iterate until the instruction is a store with the same variable index
+			InstructionHandle iterator = handle;
+			while(!(instruction instanceof StoreInstruction) || ((StoreInstruction) instruction).getIndex() != localIndex)
+			{
+				iterator = iterator.getPrev();
+				instruction = iterator.getInstruction();
+			}
+			//At the end of loop, iterator will point to the latest store instruction relevant to current load instruction
+			//This means the instruction before that is a push instruction
+
+			iterator = iterator.getPrev();
+			instruction = iterator.getInstruction();
+
+			Type type = ((TypedInstruction) instruction).getType(constantPoolGen);
+
+			return type.getSignature();
+		}
+		else
+		{
+			throw new RuntimeException("InstructioHandle is not a TypedInstruction, but : " + instruction.getClass());
+		}
 	}
 
 	private static int insert(Number value, String type, ConstantPoolGen constantPoolGen)
